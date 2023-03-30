@@ -61,14 +61,14 @@ public class SheetsService {
             SpreadsheetsReader reader = new ExcelReader(new XSSFWorkbook(inputStream));
             Student student = new Student();
             student.setCourse(getStudentCourse(file, "H6", reader));
-
+            System.out.println(student.getCourse());
         } else {
             throw new IllegalArgumentException("Unsupported file format");
         }
     }
 
     private int getStudentCourse(File file, String s, SpreadsheetsReader reader) throws IOException {
-        return Integer.parseInt(reader.readCell(file.getId(), s));
+        return Double.valueOf(reader.readCell(file.getId(), s)).intValue();
     }
 
 }

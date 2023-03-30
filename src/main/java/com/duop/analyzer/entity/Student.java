@@ -13,7 +13,8 @@ import java.util.Objects;
 @Setter
 @ToString
 @Builder
-@RequiredArgsConstructor
+@AllArgsConstructor
+@NoArgsConstructor
 @Table(name = "students")
 public class Student {
     @Id
@@ -25,8 +26,9 @@ public class Student {
     private String groupName;
     private String name;
 
-    @OneToMany(mappedBy = "id", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     @MapKeyJoinColumn(name = "subject_id")
+    @JoinColumn(name = "student_id")
     private Map<Subject, Mark> marks;
 
     @Override
