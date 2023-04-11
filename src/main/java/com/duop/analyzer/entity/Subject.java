@@ -6,17 +6,22 @@ import lombok.*;
 @Entity
 @Getter
 @Setter
-@ToString
 @AllArgsConstructor
 @NoArgsConstructor
-@Table(name="subjects")
+@Table(name = "subjects")
 public class Subject {
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
     private Long id;
 
     private String name;
 
-    private String lector;
+    @ManyToOne
+    @JoinColumn(name = "lector_id")
+    private Lector lector;
+
+    public Subject(String name) {
+        this.name = name;
+    }
 }

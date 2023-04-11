@@ -3,8 +3,6 @@ package com.duop.analyzer.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.util.Map;
-
 
 @Entity
 @Getter
@@ -16,14 +14,16 @@ import java.util.Map;
 @Table(name = "students")
 public class Student {
     @Id
-    @GeneratedValue(strategy = GenerationType.TABLE)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private Integer course;
     private String name;
     @Column(name = "class")
     private String group;
 
-    @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
-    @MapKeyJoinColumn(name = "subject_id")
-    private Map<Subject, Mark> marks;
+    public Student(Integer course, String name, String group) {
+        this.course = course;
+        this.name = name;
+        this.group = group;
+    }
 }

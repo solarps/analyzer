@@ -1,0 +1,23 @@
+searchFolderId: 1zKPJwmNcQCNYTzZGxTuBTgLuJTanRhA5
+sheetsMimetype: application/vnd.google-apps.spreadsheet
+excelMimetype: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+searchMimetypes: ${sheetsMimetype},${excelMimetype}
+
+
+subjectCell: C11:H11
+groupCell: H7
+courseCell: H6
+lectorCell: D13:H13
+students:
+  startCell: B18
+  endColumn: E
+
+spring:
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    password: root
+    username: root
+    url: jdbc:postgresql://localhost:5432/university?currentSchema=public
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    database: postgresql

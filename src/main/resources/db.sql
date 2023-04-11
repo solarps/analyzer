@@ -5,7 +5,7 @@ drop table if exists students cascade;
 
 create table if not exists students
 (
-    id     int primary key auto_increment,
+    id     serial primary key,
     name   varchar(255),
     course smallint,
     class  varchar(255),
@@ -14,13 +14,13 @@ create table if not exists students
 
 create table if not exists lectors
 (
-    id   int primary key auto_increment,
+    id   serial primary key,
     name varchar(255) unique
 );
 
 create table if not exists subjects
 (
-    id        int primary key auto_increment,
+    id        serial primary key,
     name      varchar(255),
     lector_id int,
     foreign key (lector_id) references lectors (id)

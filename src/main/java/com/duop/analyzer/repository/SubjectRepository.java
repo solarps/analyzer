@@ -1,12 +1,12 @@
 package com.duop.analyzer.repository;
 
-import com.duop.analyzer.entity.Lector;
+import com.duop.analyzer.entity.Subject;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
 @Repository
-public interface LectorRepository extends JpaRepository<Lector, Long> {
-    Optional<Lector> findByName(String name);
+public interface SubjectRepository extends JpaRepository<Subject, Long> {
+    Optional<Subject> findByName(String name);
 }

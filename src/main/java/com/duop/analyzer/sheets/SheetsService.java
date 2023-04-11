@@ -1,23 +1,26 @@
 package com.duop.analyzer.sheets;
 
-import com.duop.analyzer.entity.Student;
-import com.duop.analyzer.sheets.reader.ExcelReader;
-import com.duop.analyzer.sheets.reader.GoogleSheetsReader;
-import com.duop.analyzer.sheets.reader.SpreadsheetsReader;
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.model.File;
 import com.google.api.services.drive.model.FileList;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.security.GeneralSecurityException;
 import java.util.Iterator;
 import java.util.List;
 
+
 @Service
+@RequiredArgsConstructor
 public class SheetsService {
+    @Value("${sheetsMimetype}")
+    private String sheetsMimetype;
+    @Value("${excelMimetype}")
+    private String excelMimetype;
+    private final ReaderService readerService;
 
     public List<File> getAllFiles(String folderId, List<String> mimeTypes) throws GeneralSecurityException, IOException {
         String query = buildQuery(folderId, mimeTypes);
@@ -49,26 +52,12 @@ public class SheetsService {
     }
 
     public void readFile(File file) throws IOException, GeneralSecurityException {
-        // Build a new authorized API client service.
-        if (file.getMimeType().equals("application/vnd.google-apps.spreadsheet")) {
-            Student student = new Student();
-            SpreadsheetsReader reader = new GoogleSheetsReader(GoogleServicesUtil.getSheetsService());
-            student.setCourse(getStudentCourse(file, "H6:H6", reader));
-
-        } else if (file.getMimeType().equals("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")) {
-            Drive drive = GoogleServicesUtil.getDriverService();
-            InputStream inputStream = drive.files().get(file.getId()).executeMediaAsInputStream();
-            SpreadsheetsReader reader = new ExcelReader(new XSSFWorkbook(inputStream));
-            Student student = new Student();
-            student.setCourse(getStudentCourse(file, "H6", reader));
-            System.out.println(student.getCourse());
+        if (file.getMimeType().equals(sheetsMimetype)) {
+            readerService.readGoogleSheetsFile(file);
+        } else if (file.getMimeType().equals(excelMimetype)) {
+            readerService.readExcelFile(file);
         } else {
             throw new IllegalArgumentException("Unsupported file format");
         }
     }
-
-    private int getStudentCourse(File file, String s, SpreadsheetsReader reader) throws IOException {
-        return Double.valueOf(reader.readCell(file.getId(), s)).intValue();
-    }
-
 }

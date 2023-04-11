@@ -23,6 +23,10 @@ public class Mark {
     @Column(name = "mark")
     private Integer value;
 
+    public Mark(Integer value) {
+        this.value = value;
+    }
+
     @Embeddable
     @Getter
     @Setter

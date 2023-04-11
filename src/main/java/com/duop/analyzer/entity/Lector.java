@@ -3,7 +3,8 @@ package com.duop.analyzer.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Getter
@@ -14,11 +15,16 @@ import java.util.List;
 @Table(name = "lectors")
 public class Lector {
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
     private Long id;
+    @Column(nullable = false, unique = true)
     private String name;
 
-    @OneToMany(fetch = FetchType.EAGER)
-    private List<Subject> subjectList;
+    @OneToMany(mappedBy = "lector", fetch = FetchType.EAGER, cascade = CascadeType.ALL)
+    private Set<Subject> subjects = new HashSet<>();
+
+    public Lector(String name) {
+        this.name = name;
+    }
 }
