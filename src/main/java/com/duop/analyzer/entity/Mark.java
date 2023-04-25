@@ -14,11 +14,19 @@ import java.io.Serializable;
 @Table(name = "marks")
 @NamedQuery(
         name = "Mark.getAllMarksForStudent",
-        query = "SELECT mark FROM Mark mark WHERE mark.id.student.id = :student_id")
+        query = "SELECT mark FROM Mark mark WHERE mark.id.studentId = :student_id")
 public class Mark {
 
     @EmbeddedId
     private MarkId id;
+
+    @ManyToOne
+    @MapsId("studentId")
+    private Student student;
+
+    @ManyToOne
+    @MapsId("subjectId")
+    private Subject subject;
 
     @Column(name = "mark")
     private Integer value;
@@ -32,12 +40,10 @@ public class Mark {
     @Setter
     @EqualsAndHashCode
     public static class MarkId implements Serializable {
-        @ManyToOne
-        @JoinColumn(name = "student_id")
-        private Student student;
+        @Column(name = "student_id")
+        private Long studentId;
 
-        @ManyToOne
-        @JoinColumn(name = "subject_id")
-        private Subject subject;
+        @Column(name = "subject_id")
+        private Long subjectId;
     }
 }
