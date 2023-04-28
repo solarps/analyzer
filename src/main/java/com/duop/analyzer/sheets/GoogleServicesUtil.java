@@ -9,28 +9,27 @@ import com.google.api.services.sheets.v4.Sheets;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 
-
 public class GoogleServicesUtil {
+    private static final String APPLICATION_NAME = "Google sheets analyzer";
+    private static final Credential credential = GoogleAuthorizeUtil.getCredential();
 
     private GoogleServicesUtil() {
     }
 
-    private static final String APPLICATION_NAME = "Google sheets analyzer";
-    private static final Credential credential = GoogleAuthorizeUtil.getCredential();
-
     public static Sheets getSheetsService() throws IOException, GeneralSecurityException {
         return new Sheets.Builder(
                 GoogleNetHttpTransport.newTrustedTransport(),
-                GsonFactory.getDefaultInstance(), credential)
+                GsonFactory.getDefaultInstance(),
+                credential)
                 .setApplicationName(APPLICATION_NAME)
                 .build();
-
     }
 
     public static Drive getDriverService() throws GeneralSecurityException, IOException {
         return new Drive.Builder(
                 GoogleNetHttpTransport.newTrustedTransport(),
-                GsonFactory.getDefaultInstance(), credential)
+                GsonFactory.getDefaultInstance(),
+                credential)
                 .setApplicationName(APPLICATION_NAME)
                 .build();
     }

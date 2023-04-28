@@ -1,6 +1,6 @@
 package com.duop.analyzer;
 
-import com.duop.analyzer.sheets.SheetsService;
+import com.duop.analyzer.sheets.DriveService;
 import com.google.api.services.drive.model.File;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,9 +20,11 @@ import java.util.concurrent.Executors;
 public class AnalyzerApplication implements CommandLineRunner {
     private final Logger logger = LoggerFactory.getLogger("AnalyzerLogger");
     @Autowired
-    private SheetsService sheetsService;
+    private DriveService driveService;
+
     @Value("#{'${searchMimetypes}'.split(',')}")
     private List<String> mimeTypes;
+
     @Value("${searchFolderId}")
     private String folderId;
 
@@ -32,19 +34,20 @@ public class AnalyzerApplication implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        List<File> files = sheetsService.getAllFiles(folderId, mimeTypes);
+        List<File> files = driveService.getAllFiles(folderId, mimeTypes);
         if (files == null || files.isEmpty()) {
             logger.warn("No files found.");
         } else {
-            ExecutorService service = Executors.newFixedThreadPool(4);
+            ExecutorService service = Executors.newFixedThreadPool(5);
             for (File file : files) {
-                service.execute(()-> {
-                    try {
-                        sheetsService.readFile(file);
-                    } catch (IOException | GeneralSecurityException e) {
-                        throw new RuntimeException(e);
-                    }
-                });
+                service.execute(
+                        () -> {
+                            try {
+                                driveService.readFile(file);
+                            } catch (IOException | GeneralSecurityException e) {
+                                throw new RuntimeException(e);
+                            }
+                        });
             }
             service.shutdown();
         }

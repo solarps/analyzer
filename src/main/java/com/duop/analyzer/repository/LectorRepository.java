@@ -9,4 +9,6 @@ import java.util.Optional;
 @Repository
 public interface LectorRepository extends JpaRepository<Lector, Long> {
     Optional<Lector> findByName(String name);
+
+    boolean existsByName(String name);
 }

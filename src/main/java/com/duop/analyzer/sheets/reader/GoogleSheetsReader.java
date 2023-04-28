@@ -9,8 +9,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class GoogleSheetsReader extends SpreadsheetsReader {
-
+public class GoogleSheetsReader implements SpreadsheetsReader {
     private final Sheets service;
 
     public GoogleSheetsReader(Sheets service) {
@@ -19,7 +18,8 @@ public class GoogleSheetsReader extends SpreadsheetsReader {
 
     @Override
     public String readCell(String spreadsheetId, String cellRange) throws IOException {
-        ValueRange response = service.spreadsheets().values().get(spreadsheetId, cellRange + ":" + cellRange).execute();
+        ValueRange response =
+                service.spreadsheets().values().get(spreadsheetId, cellRange + ":" + cellRange).execute();
         return getCellValue(response);
     }
 
@@ -41,10 +41,9 @@ public class GoogleSheetsReader extends SpreadsheetsReader {
     }
 
     @Override
-    public List<List<String>> readInRangeExcludedFields(String spreadsheetId, String range, int... fields) throws IOException {
-        ValueRange response = service.spreadsheets().values()
-                .get(spreadsheetId, range)
-                .execute();
+    public List<List<String>> readInRangeExcludedFields(
+            String spreadsheetId, String range, int... fields) throws IOException {
+        ValueRange response = service.spreadsheets().values().get(spreadsheetId, range).execute();
         List<List<Object>> values = response.getValues();
         List<List<String>> result = new ArrayList<>();
 
@@ -68,7 +67,16 @@ public class GoogleSheetsReader extends SpreadsheetsReader {
     }
 
     @Override
-    public String getRangeForTable(String spreadsheetId, String startCell, String endColumn) throws IOException {
+    public List<List<String>> readInRange(String spreadsheetId, String range) throws IOException {
+        ValueRange response = service.spreadsheets().values().get(spreadsheetId, range).execute();
+        return response.getValues().stream()
+                .map(list -> list.stream().map(Object::toString).filter(s -> !s.isEmpty()).toList())
+                .toList();
+    }
+
+    @Override
+    public String getRangeForTable(String spreadsheetId, String startCell, String endColumn)
+            throws IOException {
         String range = startCell + ":" + endColumn;
         ValueRange response = service.spreadsheets().values().get(spreadsheetId, range).execute();
         List<List<Object>> values = response.getValues();
@@ -80,7 +88,9 @@ public class GoogleSheetsReader extends SpreadsheetsReader {
                 break;
             }
         }
-        String endCell = CellReference.convertNumToColString(CellReference.convertColStringToIndex(endColumn)) + (lastRow + Integer.parseInt(startCell.substring(1)) - 1);
+        String endCell =
+                CellReference.convertNumToColString(CellReference.convertColStringToIndex(endColumn))
+                        + (lastRow + Integer.parseInt(startCell.substring(1)) - 1);
         return startCell + ":" + endCell;
     }
 }

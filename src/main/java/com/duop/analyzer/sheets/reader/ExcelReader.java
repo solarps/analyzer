@@ -8,7 +8,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class ExcelReader extends SpreadsheetsReader {
+public class ExcelReader implements SpreadsheetsReader {
     private final Workbook workbook;
 
     public ExcelReader(Workbook workbook) {
@@ -52,9 +52,9 @@ public class ExcelReader extends SpreadsheetsReader {
             List<String> rowData = new ArrayList<>();
             for (Cell cell : row) {
                 int colNum = cell.getColumnIndex();
-                if (Arrays.stream(fields).anyMatch(f -> f == colNum) ||
-                        colNum > cellRangeAddress.getLastColumn() ||
-                        colNum < cellRangeAddress.getFirstColumn()) {
+                if (Arrays.stream(fields).anyMatch(f -> f == colNum)
+                        || colNum > cellRangeAddress.getLastColumn()
+                        || colNum < cellRangeAddress.getFirstColumn()) {
                     continue;
                 }
 
@@ -63,7 +63,35 @@ public class ExcelReader extends SpreadsheetsReader {
 
             result.add(rowData);
         }
+        return result;
+    }
 
+    @Override
+    public List<List<String>> readInRange(String spreadsheetId, String range) {
+        Sheet sheet = workbook.getSheetAt(0);
+        CellRangeAddress cellRangeAddress = CellRangeAddress.valueOf(range);
+        List<List<String>> result = new ArrayList<>();
+
+        for (Row row : sheet) {
+            int rowNum = row.getRowNum();
+            if (rowNum < cellRangeAddress.getFirstRow() || rowNum > cellRangeAddress.getLastRow()) {
+                continue;
+            }
+
+            List<String> rowData = new ArrayList<>();
+            for (Cell cell : row) {
+                int colNum = cell.getColumnIndex();
+                if (colNum > cellRangeAddress.getLastColumn()
+                        || colNum < cellRangeAddress.getFirstColumn()
+                        || getTypedValue(cell) == null) {
+                    continue;
+                }
+
+                rowData.add(getTypedValue(cell));
+            }
+
+            result.add(rowData);
+        }
         return result;
     }
 

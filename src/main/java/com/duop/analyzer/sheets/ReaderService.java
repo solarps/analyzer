@@ -1,33 +1,25 @@
 package com.duop.analyzer.sheets;
 
 import com.duop.analyzer.aspects.LogReadingTime;
-import com.duop.analyzer.entity.Lector;
-import com.duop.analyzer.entity.Mark;
-import com.duop.analyzer.entity.Student;
-import com.duop.analyzer.entity.Subject;
-import com.duop.analyzer.repository.LectorRepository;
-import com.duop.analyzer.repository.MarkRepository;
-import com.duop.analyzer.repository.StudentRepository;
-import com.duop.analyzer.repository.SubjectRepository;
-import com.duop.analyzer.sheets.reader.ExcelReader;
-import com.duop.analyzer.sheets.reader.GoogleSheetsReader;
+import com.duop.analyzer.entity.*;
 import com.duop.analyzer.sheets.reader.SpreadsheetsReader;
-import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.model.File;
-import com.google.api.services.sheets.v4.Sheets;
 import lombok.RequiredArgsConstructor;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.security.GeneralSecurityException;
-import java.util.ArrayList;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.List;
-import java.util.Optional;
+import java.util.Locale;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -41,98 +33,155 @@ public class ReaderService {
     private String groupCell;
     @Value("${lectorCell}")
     private String lectorCell;
+    @Value("${controlLectorCell}")
+    private String controlLectorCell;
     @Value("${subjectCell}")
     private String subjectCell;
-    @Value("${courseCell}")
-    private String courseCell;
-    private final StudentRepository studentRepository;
-    private final LectorRepository lectorRepository;
-    private final SubjectRepository subjectRepository;
-    private final MarkRepository markRepository;
-
-    private record Result(String name, String mark) {
-    }
-
-    @LogReadingTime
-    public void readExcelFile(File file) throws IOException, GeneralSecurityException {
-        logger.info("ReaderService: read excel file \"{}\"", file.getId());
-        Drive drive = GoogleServicesUtil.getDriverService();
-        InputStream inputStream = drive.files().get(file.getId()).executeMediaAsInputStream();
-        SpreadsheetsReader reader = new ExcelReader(new XSSFWorkbook(inputStream));
-        readFile(file, reader);
-    }
+    @Value("${sheets.typeCell}")
+    private String sheetTypeCell;
+    @Value("${sheets.yearCell}")
+    private String sheetYearCell;
+    @Value("${sheets.numberCell}")
+    private String sheetNumberCell;
+    @Value("${sheets.courseCell}")
+    private String sheetCourseCell;
+    @Value("${sheets.postingDateCell}")
+    private String sheetPostingDateCell;
+    @Value("${sheets.facultyCell}")
+    private String sheetFacultyCell;
 
     @LogReadingTime
-    public void readGoogleSheetsFile(File file) throws GeneralSecurityException, IOException {
-        logger.info("ReaderService: read google sheets file \"{}\"", file.getId());
-        Sheets sheets = GoogleServicesUtil.getSheetsService();
-        SpreadsheetsReader reader = new GoogleSheetsReader(sheets);
-        readFile(file, reader);
+    public SheetReadResult readFile(File file, SpreadsheetsReader reader) throws IOException {
+        logger.info("ReaderService: read file \"{}\"", file.getId());
+        return getSheetReadResult(file, reader);
     }
 
-    private void readFile(File file, SpreadsheetsReader reader) throws IOException {
-        Lector lector = getLectorFromFile(file, lectorCell, reader);
-        Subject subject = getSubjectFromFile(file, subjectCell, reader);
-        subject.setLector(lector);
-        lectorRepository.save(lector);
-        subjectRepository.save(subject);
-        List<Result> results = getStudentsFromFile(file, reader.getRangeForTable(file.getId(), startCell, endColumn), reader);
-        String group = getStudentGroupFromFile(file, groupCell, reader);
-        int studentCourse = getStudentCourseFromFile(file, courseCell, reader);
-        List<Student> students = new ArrayList<>();
-        List<Mark> marks = new ArrayList<>();
-        for (Result result : results) {
-            Optional<Student> optionalStudent = studentRepository.findStudentByUniqueKey(result.name, group);
-            Mark.MarkId markId = new Mark.MarkId();
-            Mark mark = new Mark(Double.valueOf(result.mark).intValue());
-            if (optionalStudent.isPresent()) {
-                markId.setStudentId(optionalStudent.get().getId());
-                markId.setSubjectId(subject.getId());
-                mark.setStudent(optionalStudent.get());
-            } else {
-                Student student = new Student(studentCourse, result.name, group);
-                students.add(student);
-                markId.setStudentId(student.getId());
-                markId.setSubjectId(subject.getId());
-                mark.setStudent(student);
-            }
-            if (!markRepository.existsById(markId)) {
-                mark.setSubject(subject);
-                mark.setId(markId);
-                marks.add(mark);
+    private SheetReadResult getSheetReadResult(File file, SpreadsheetsReader reader)
+            throws IOException {
+        Lector lector = readLectorFromFile(file, lectorCell, reader);
+        Lector controlLector = readLectorFromFile(file, controlLectorCell, reader);
+        Subject subject = readSubjectFromFile(file, subjectCell, reader);
+        Sheet sheet =
+                Sheet.builder()
+                        .number(readSheetNumberFromFile(file, sheetNumberCell, reader))
+                        .faculty(readFacultyFromFile(file, sheetFacultyCell, reader))
+                        .sheetType(readSheetTypeFromFile(file, sheetTypeCell, reader))
+                        .year(readSheetYearFromFile(file, sheetYearCell, reader))
+                        .course(readSheetCourseFromFile(file, sheetCourseCell, reader))
+                        .postingDate(readPostingDateFromFile(file, sheetPostingDateCell, reader))
+                        .build();
+        Map<Student, Mark> studentsMarks =
+                getStudentsWithMarksFromFile(
+                        file, reader.getRangeForTable(file.getId(), startCell, endColumn), reader);
+        Group group = getStudentGroupFromFile(file, groupCell, reader);
+        return new SheetReadResult(sheet, studentsMarks, lector, controlLector, group, subject);
+    }
+
+    private String readFacultyFromFile(File file, String range, SpreadsheetsReader reader)
+            throws IOException {
+        logger.trace(
+                "ReaderService: read faculty from file \"{}\" in range \"{}\"", file.getId(), range);
+        return reader.readMergedCell(file.getId(), range);
+    }
+
+    private LocalDate readPostingDateFromFile(File file, String range, SpreadsheetsReader reader)
+            throws IOException {
+        logger.trace(
+                "ReaderService: read posting date from file \"{}\" in range \"{}\"", file.getId(), range);
+        List<String> dateInRange = reader.readInRange(file.getId(), range).get(0);
+        Pattern yearPattern = Pattern.compile("\\d{4}");
+        Matcher matcher = yearPattern.matcher(dateInRange.get(1));
+        String year;
+        if (matcher.find()) {
+            year = matcher.group(0);
+        } else {
+            logger.error("No posting year found");
+            throw new IllegalArgumentException("No posting year found");
+        }
+
+        String dateString =
+                dateInRange.get(0).strip().replace("\"", "").concat(" " + year).replaceAll(" +", " ");
+        List<DateTimeFormatter> formatters =
+                List.of(
+                        DateTimeFormatter.ofPattern("d MM yyyy"),
+                        DateTimeFormatter.ofPattern("d MMMM yyyy", new Locale("uk")));
+        for (DateTimeFormatter formatter : formatters) {
+            try {
+                return LocalDate.parse(dateString, formatter);
+            } catch (DateTimeParseException ignored) {
             }
         }
-        studentRepository.saveAll(students);
-        markRepository.saveAll(marks);
+        logger.error("Date could not be parsed");
+        throw new IllegalArgumentException("Date could not be parsed");
     }
 
-    private Subject getSubjectFromFile(File file, String range, SpreadsheetsReader reader) throws IOException {
-        logger.trace("ReaderService: read subject from file \"{}\" in range \"{}\"", file.getId(), range);
-        String name = reader.readMergedCell(file.getId(), range);
-        Optional<Subject> optionalSubject = subjectRepository.findByName(name);
-        return optionalSubject.orElse(new Subject(name));
-    }
-
-    private Lector getLectorFromFile(File file, String range, SpreadsheetsReader reader) throws IOException {
-        logger.trace("ReaderService: read lector from file \"{}\" in range \"{}\"", file.getId(), range);
-        String name = reader.readMergedCell(file.getId(), range);
-        Optional<Lector> optionalLector = lectorRepository.findByName(name);
-        return optionalLector.orElse(new Lector(name));
-    }
-
-    private List<Result> getStudentsFromFile(File file, String range, SpreadsheetsReader reader) throws IOException {
-        logger.trace("ReaderService: read students from file \"{}\" in range \"{}\"", file.getId(), range);
-        List<List<String>> resultList = reader.readInRangeExcludedFields(file.getId(), range, 2, 3);
-        return resultList.stream().map(list -> new Result(list.get(0), list.get(1))).toList();
-    }
-
-    private int getStudentCourseFromFile(File file, String range, SpreadsheetsReader reader) throws IOException {
-        logger.trace("ReaderService: read student course from file \"{}\" in range \"{}\"", file.getId(), range);
+    private Integer readSheetNumberFromFile(File file, String range, SpreadsheetsReader reader)
+            throws IOException {
+        logger.trace(
+                "ReaderService: read sheet number from file \"{}\" in range \"{}\"", file.getId(), range);
         return Double.valueOf(reader.readCell(file.getId(), range)).intValue();
     }
 
-    private String getStudentGroupFromFile(File file, String range, SpreadsheetsReader reader) throws IOException {
-        logger.trace("ReaderService: read student group from file \"{}\" in range \"{}\"", file.getId(), range);
-        return reader.readCell(file.getId(), range);
+    private Short readSheetYearFromFile(File file, String range, SpreadsheetsReader reader)
+            throws IOException {
+        logger.trace(
+                "ReaderService: read sheet year from file \"{}\" in range \"{}\"", file.getId(), range);
+        return Double.valueOf(reader.readCell(file.getId(), range)).shortValue();
+    }
+
+    private SheetType readSheetTypeFromFile(File file, String range, SpreadsheetsReader reader)
+            throws IOException {
+        logger.trace(
+                "ReaderService: read sheet type from file \"{}\" in range \"{}\"", file.getId(), range);
+        return SheetType.valueOf(reader.readCell(file.getId(), range));
+    }
+
+    private Subject readSubjectFromFile(File file, String range, SpreadsheetsReader reader)
+            throws IOException {
+        logger.trace(
+                "ReaderService: read subject from file \"{}\" in range \"{}\"", file.getId(), range);
+        String name = reader.readMergedCell(file.getId(), range);
+        return new Subject(name);
+    }
+
+    private Lector readLectorFromFile(File file, String range, SpreadsheetsReader reader)
+            throws IOException {
+        logger.trace(
+                "ReaderService: read lector from file \"{}\" in range \"{}\"", file.getId(), range);
+        String name = reader.readMergedCell(file.getId(), range);
+        return new Lector(name);
+    }
+
+    private Map<Student, Mark> getStudentsWithMarksFromFile(
+            File file, String range, SpreadsheetsReader reader) throws IOException {
+        logger.trace(
+                "ReaderService: read students from file \"{}\" in range \"{}\"", file.getId(), range);
+        List<List<String>> resultList = reader.readInRangeExcludedFields(file.getId(), range, 2, 3);
+        return resultList.stream()
+                .collect(
+                        Collectors.toMap(
+                                row -> Student.builder().name(row.get(0)).build(),
+                                row -> new Mark(Double.valueOf(row.get(1)).intValue())));
+    }
+
+    private byte readSheetCourseFromFile(File file, String range, SpreadsheetsReader reader)
+            throws IOException {
+        logger.trace(
+                "ReaderService: read student course from file \"{}\" in range \"{}\"", file.getId(), range);
+        return Double.valueOf(reader.readCell(file.getId(), range)).byteValue();
+    }
+
+    private Group getStudentGroupFromFile(File file, String range, SpreadsheetsReader reader)
+            throws IOException {
+        logger.trace(
+                "ReaderService: read student group from file \"{}\" in range \"{}\"", file.getId(), range);
+        String result = reader.readCell(file.getId(), range);
+        Pattern pattern = Pattern.compile("(?<letters>[А-Яа-яA-Za-z]+)?-?(?<numbers>\\d+)");
+        Matcher matcher = pattern.matcher(result);
+        if (matcher.find()) {
+            String number = matcher.group("numbers");
+            String letters = matcher.group("letters");
+            return Group.builder().name(letters).number(Short.valueOf(number)).build();
+        } else throw new IllegalArgumentException();
     }
 }

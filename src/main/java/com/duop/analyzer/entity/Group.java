@@ -6,19 +6,17 @@ import lombok.*;
 @Entity
 @Getter
 @Setter
-@AllArgsConstructor
+@ToString
 @NoArgsConstructor
+@AllArgsConstructor
 @Builder
-@Table(name = "subjects")
-public class Subject {
+@Table(name = "groups")
+public class Group {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id", nullable = false)
     private Long id;
 
     private String name;
 
-    public Subject(String name) {
-        this.name = name;
-    }
+    private Short number;
 }

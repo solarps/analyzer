@@ -3,14 +3,23 @@ sheetsMimetype: application/vnd.google-apps.spreadsheet
 excelMimetype: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
 searchMimetypes: ${sheetsMimetype},${excelMimetype}
 
-
 subjectCell: C11:H11
 groupCell: H7
-courseCell: H6
 lectorCell: D13:H13
+controlLectorCell: D14:H14
 students:
   startCell: B18
   endColumn: E
+sheets:
+  typeCell: E12
+  yearCell: C6
+  numberCell: E9
+  courseCell: H6
+  postingDateCell: D10:F10
+  facultyCell: A3:H3
+
+
+
 
 spring:
   datasource:
