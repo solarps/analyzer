@@ -2,6 +2,8 @@ package com.duop.analyzer.entity;
 
 import lombok.Getter;
 
+import java.util.stream.Stream;
+
 @Getter
 public enum SheetType {
     ІСП(1),
@@ -18,5 +20,12 @@ public enum SheetType {
     @Override
     public String toString() {
         return name().toUpperCase();
+    }
+
+    public static SheetType of(int code) {
+        return Stream.of(SheetType.values())
+                .filter(p -> p.getCode() == code)
+                .findFirst()
+                .orElseThrow(IllegalArgumentException::new);
     }
 }

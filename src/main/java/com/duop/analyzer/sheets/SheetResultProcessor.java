@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -20,7 +21,9 @@ public class SheetResultProcessor {
     private final MarkRepository markRepository;
     private final SheetRepository sheetRepository;
 
-    public void saveResult(SheetReadResult result) {
+
+    @Transactional
+    public synchronized void saveResult(SheetReadResult result) {
         if (sheetRepository.existsByNumber(result.getSheet().getNumber())) {
             logger.warn("Sheet: {} already exists", result.getSheet().getNumber());
             return;
@@ -46,15 +49,21 @@ public class SheetResultProcessor {
         result.getStudentMarks().keySet().forEach(student -> student.setGroup(group));
 
         List<Student> studentsToSave = result.getStudentMarks().keySet().stream()
-                .filter(student -> student.getId() == null)
+                .filter(student -> !studentRepository.existsByNameAndGroup(student.getName(), student.getGroup()))
                 .toList();
         studentRepository.saveAll(studentsToSave);
 
         sheetRepository.save(result.getSheet());
 
         List<Mark> marksToSave = result.getStudentMarks().values().stream()
-                .filter(mark -> mark.getId() == null)
+                .map(mark -> {
+                    mark.setStudent(studentRepository.findByNameAndGroup(mark.getStudent().getName(), mark.getStudent().getGroup())
+                            .orElse(mark.getStudent()));
+                    return mark;
+                })
                 .toList();
         markRepository.saveAll(marksToSave);
+
+        sheetRepository.save(result.getSheet());
     }
 }

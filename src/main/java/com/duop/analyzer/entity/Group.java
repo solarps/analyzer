@@ -6,7 +6,6 @@ import lombok.*;
 @Entity
 @Getter
 @Setter
-@ToString
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -19,4 +18,9 @@ public class Group {
     private String name;
 
     private Short number;
+
+    @Override
+    public String toString() {
+        return name + '-' + number;
+    }
 }

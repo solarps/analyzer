@@ -10,7 +10,7 @@ drop type if exists form_type cascade;
 create table if not exists groups
 (
     id     serial primary key,
-    name   char(5)  not null,
+    name   varchar(5)  not null,
     number smallint not null,
     unique (name, number)
 );
@@ -20,7 +20,8 @@ create table if not exists students
     id       serial primary key,
     name     varchar(255) not null,
     group_id integer,
-    foreign key (group_id) references groups (id)
+    foreign key (group_id) references groups (id),
+    unique (name, group_id)
 );
 
 create table if not exists lectors
@@ -38,7 +39,7 @@ create table if not exists subjects
 create table form_types
 (
     id   serial primary key,
-    name char(5) not null
+    name varchar(5) not null
 );
 
 

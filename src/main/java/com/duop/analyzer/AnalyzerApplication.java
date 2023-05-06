@@ -1,5 +1,7 @@
 package com.duop.analyzer;
 
+import com.duop.analyzer.service.GroupService;
+import com.duop.analyzer.service.StudentService;
 import com.duop.analyzer.sheets.DriveService;
 import com.google.api.services.drive.model.File;
 import org.slf4j.Logger;
@@ -12,7 +14,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -21,6 +25,10 @@ public class AnalyzerApplication implements CommandLineRunner {
     private final Logger logger = LoggerFactory.getLogger("AnalyzerLogger");
     @Autowired
     private DriveService driveService;
+    @Autowired
+    private StudentService studentService;
+    @Autowired
+    private GroupService groupService;
 
     @Value("#{'${searchMimetypes}'.split(',')}")
     private List<String> mimeTypes;
@@ -34,22 +42,30 @@ public class AnalyzerApplication implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
+        List<Callable<String>> tasks = new ArrayList<>();
         List<File> files = driveService.getAllFiles(folderId, mimeTypes);
+        ExecutorService service = Executors.newFixedThreadPool(5);
         if (files == null || files.isEmpty()) {
             logger.warn("No files found.");
         } else {
-            ExecutorService service = Executors.newFixedThreadPool(5);
             for (File file : files) {
-                service.execute(
-                        () -> {
-                            try {
-                                driveService.readFile(file);
-                            } catch (IOException | GeneralSecurityException e) {
-                                throw new RuntimeException(e);
-                            }
-                        });
+                tasks.add(() -> {
+                    try {
+                        driveService.readFile(file);
+                        return "done";
+                    } catch (IOException | GeneralSecurityException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
             }
-            service.shutdown();
+            service.invokeAll(tasks);
         }
+        logger.info("Writing ratings");
+        List<String> flows = groupService.getAllUniversityFlows();
+        String folder = driveService.createFolder(folderId, "Рейтинги");
+        for (String flow : flows) {
+            driveService.writeRatingFile(flow, folder);
+        }
+        service.shutdown();
     }
 }
