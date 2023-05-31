@@ -160,7 +160,7 @@ public class ReaderService {
         return resultList.stream()
                 .collect(
                         Collectors.toMap(
-                                row -> Student.builder().name(row.get(0)).build(),
+                                row -> Student.builder().details(StudentDetails.builder().name(row.get(0)).build()).build(),
                                 row -> new Mark(Double.valueOf(row.get(1)).intValue())));
     }
 

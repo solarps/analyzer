@@ -2,9 +2,12 @@ package com.duop.analyzer.sheets.writer;
 
 import com.duop.analyzer.entity.Student;
 import com.duop.analyzer.repository.SubjectMark;
+import com.duop.analyzer.service.RatingService;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -17,9 +20,11 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+@Component
 @RequiredArgsConstructor
 public class ExcelWriter implements StudentRatingWriter {
-    private final Workbook workbook;
+    private final RatingService ratingService;
+    private Workbook workbook;
     private int[] subjectColumns;
     private int examCell;
     private int courseCell;
@@ -28,6 +33,7 @@ public class ExcelWriter implements StudentRatingWriter {
 
     @Override
     public byte[] writeStudentRating(Map<Student, List<SubjectMark>> studentMarks) throws IOException {
+        workbook = new XSSFWorkbook();
         Sheet sheet = workbook.createSheet("Rating");
 
         Row headerRow = sheet.createRow(0);
@@ -51,13 +57,14 @@ public class ExcelWriter implements StudentRatingWriter {
     private void writeStudents(Sheet sheet, Map<Student, List<SubjectMark>> studentMarks) {
         int lastRow = 3;
         int number = 1;
-        studentMarks = sortStudentByRating(studentMarks);
+        studentMarks = ratingService.computeRating(studentMarks);
         for (Map.Entry<Student, List<SubjectMark>> entry : studentMarks.entrySet()) {
             int lastCell = 0;
             Row row = sheet.createRow(lastRow);
             row.createCell(lastCell++).setCellValue(number++);
-            row.createCell(lastCell++).setCellValue(entry.getKey().getName());
-            row.createCell(lastCell).setCellValue(entry.getKey().getGroup().toString());
+            row.createCell(lastCell++).setCellValue(entry.getKey().getDetails().getName());
+            row.createCell(lastCell++).setCellValue(entry.getKey().getGroup().toString());
+            row.createCell(lastCell).setCellValue(entry.getKey().getEducationType().type);
             writeMarks(sheet, entry.getValue(), row);
             if (courseCell != 0) {
                 BigDecimal courseMark = getAvgMark(entry.getValue(), List.of("КР"));
@@ -99,25 +106,6 @@ public class ExcelWriter implements StudentRatingWriter {
                         .filter(mark -> types.contains(mark.getType()))
                         .count()),
                 2, RoundingMode.HALF_UP);
-    }
-
-    private Map<Student, List<SubjectMark>> sortStudentByRating(Map<Student, List<SubjectMark>> studentMarks) {
-        return studentMarks.entrySet().stream()
-                .sorted(Comparator.comparingDouble((Map.Entry<Student, List<SubjectMark>> entry) -> entry.getValue().stream()
-                                .map(SubjectMark::getMarkValue)
-                                .mapToDouble(Double::parseDouble)
-                                .average()
-                                .orElse(0))
-                        .thenComparing(entry -> entry.getValue().stream()
-                                .filter(mark -> "ІСП".equals(mark.getType()))
-                                .map(SubjectMark::getMarkValue)
-                                .mapToDouble(Double::parseDouble)
-                                .average().orElse(0)).reversed())
-                .collect(Collectors.toMap(
-                        Map.Entry::getKey,
-                        Map.Entry::getValue,
-                        (oldValue, newValue) -> oldValue,
-                        LinkedHashMap::new));
     }
 
     private void writeHeader(Row row, Map<Student, List<SubjectMark>> studentMarks) {

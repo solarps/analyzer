@@ -16,14 +16,13 @@ public class Student {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String name;
+    private StudentEducationType educationType;
+
+    @ManyToOne
+    @JoinColumn(name = "details_id")
+    private StudentDetails details;
 
     @ManyToOne
     @JoinColumn(name = "group_id")
     private Group group;
-
-    public Student(String name, Group group) {
-        this.name = name;
-        this.group = group;
-    }
 }

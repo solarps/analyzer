@@ -27,7 +27,7 @@ public class StudentService {
     public Map<Student, List<SubjectMark>> getAllStudentsMarks(List<Student> students) {
         Map<Student, List<SubjectMark>> studentMarks = new HashMap<>();
         for (Student student : students) {
-            List<SubjectMark> studentMarkForSubject = markRepository.findStudentMarkForSubject(student.getId());
+            List<SubjectMark> studentMarkForSubject = markRepository.findLastStudentMarkForSubject(student.getId());
             studentMarks.put(student, studentMarkForSubject);
         }
         return studentMarks;

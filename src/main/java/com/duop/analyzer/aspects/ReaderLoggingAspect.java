@@ -11,7 +11,7 @@ import org.springframework.util.StopWatch;
 
 @Aspect
 @Component
-public class ReaderAspect {
+public class ReaderLoggingAspect {
     private final Logger logger = LoggerFactory.getLogger("AnalyzerLogger");
 
     @Around("@annotation(com.duop.analyzer.aspects.LogReadingTime)")
