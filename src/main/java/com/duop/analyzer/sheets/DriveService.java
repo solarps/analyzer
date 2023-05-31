@@ -34,6 +34,7 @@ public class DriveService {
     private final ReaderService readerService;
     private final StudentService studentService;
     private final SheetResultProcessor sheetResultProcessor;
+    private final ExcelWriter excelWriter;
 
     @Value("${sheetsMimetype}")
     private String sheetsMimetype;
@@ -73,9 +74,6 @@ public class DriveService {
     public void readFile(File file) throws IOException, GeneralSecurityException {
         if (file.getMimeType().equals(sheetsMimetype)) {
             logger.info("DriveService: read google sheets file \"{}\"", file.getId());
-//            Sheets sheets = GoogleServicesUtil.getSheetsService();
-//            SpreadsheetsReader reader = new GoogleSheetsReader(sheets);
-//            sheetResultProcessor.saveResult(readerService.readFile(file, reader));
             Drive drive = GoogleServicesUtil.getDriverService();
             InputStream inputStream = drive.files().export(file.getId(), excelMimetype).executeMediaAsInputStream();
             SpreadsheetsReader reader = new ExcelReader(new XSSFWorkbook(inputStream));
@@ -106,7 +104,7 @@ public class DriveService {
             File folder = drive.files().create(folderMetadata).setFields("id").execute();
             return folder.getId();
         } else {
-            logger.warn("DriveService: file already exists");
+            logger.warn("DriveService: folder already exists");
             return result.getFiles().get(0).getId();
         }
     }
@@ -114,8 +112,7 @@ public class DriveService {
     public void writeRatingFile(String flow, String folderId) throws IOException, GeneralSecurityException {
         List<Student> students = studentService.getAllStudentsForFlow(flow);
         Map<Student, List<SubjectMark>> allStudentsMarks = studentService.getAllStudentsMarks(students);
-        ExcelWriter writer = new ExcelWriter(new XSSFWorkbook());
-        byte[] file = writer.writeStudentRating(allStudentsMarks);
+        byte[] file = excelWriter.writeStudentRating(allStudentsMarks);
         File fileMetadata = new File();
         fileMetadata.setName(flow + "_Рейтинг.xlsx");
         fileMetadata.setParents(List.of(folderId));

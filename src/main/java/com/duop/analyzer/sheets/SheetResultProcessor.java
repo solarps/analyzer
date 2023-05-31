@@ -20,6 +20,7 @@ public class SheetResultProcessor {
     private final GroupRepository groupRepository;
     private final MarkRepository markRepository;
     private final SheetRepository sheetRepository;
+    private final StudentDetailsRepository studentDetailsRepository;
 
 
     @Transactional
@@ -32,38 +33,48 @@ public class SheetResultProcessor {
                 .findByName(result.getLector().getName())
                 .orElseGet(() -> lectorRepository.save(result.getLector()));
         result.getSheet().setLector(lector);
+        logger.trace("Lector saved");
 
         Lector controlLector = lectorRepository
                 .findByName(result.getControlLector().getName())
                 .orElseGet(() -> lectorRepository.save(result.getControlLector()));
         result.getSheet().setControlLector(controlLector);
+        logger.trace("Control lector saved");
 
         Subject subject = subjectRepository
                 .findByName(result.getSubject().getName())
                 .orElseGet(() -> subjectRepository.save(result.getSubject()));
         result.getSheet().setSubject(subject);
+        logger.trace("Control lector saved");
 
         Group group = groupRepository
                 .findByNameAndNumber(result.getGroup().getName(), result.getGroup().getNumber())
                 .orElseGet(() -> groupRepository.save(result.getGroup()));
         result.getStudentMarks().keySet().forEach(student -> student.setGroup(group));
+        logger.trace("Group saved");
 
         List<Student> studentsToSave = result.getStudentMarks().keySet().stream()
-                .filter(student -> !studentRepository.existsByNameAndGroup(student.getName(), student.getGroup()))
+                .peek(student -> student.setEducationType(StudentEducationType.generateType()))
+                .map(student -> {
+                    student.setDetails(studentDetailsRepository.findByName(student.getDetails().getName())
+                            .orElseGet(() -> studentDetailsRepository.save(student.getDetails())));
+                    return student;
+                }).filter(student -> !studentRepository.existsByDetailsAndGroup(student.getDetails(), student.getGroup()))
                 .toList();
         studentRepository.saveAll(studentsToSave);
+        logger.trace("Students saved");
 
         sheetRepository.save(result.getSheet());
+        logger.trace("Sheet saved");
 
         List<Mark> marksToSave = result.getStudentMarks().values().stream()
                 .map(mark -> {
-                    mark.setStudent(studentRepository.findByNameAndGroup(mark.getStudent().getName(), mark.getStudent().getGroup())
+                    mark.setStudent(studentRepository.findByDetailsAndGroup(mark.getStudent().getDetails(), mark.getStudent().getGroup())
                             .orElse(mark.getStudent()));
                     return mark;
                 })
                 .toList();
         markRepository.saveAll(marksToSave);
-
-        sheetRepository.save(result.getSheet());
+        logger.trace("Marks saved");
     }
 }

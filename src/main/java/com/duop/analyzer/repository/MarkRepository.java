@@ -18,12 +18,16 @@ public interface MarkRepository extends JpaRepository<Mark, Long> {
 
     List<Mark> findAllByStudent(Student student);
 
-    @Query(value = "select sub.name as subjectName, m.mark as markValue, ft.name as type\n" +
-            "from marks as m\n" +
-            "         join students s on s.id = m.student_id\n" +
-            "         join sheets sh on sh.id = m.sheet_id\n" +
-            "         join subjects sub on sub.id = sh.subject_id\n" +
-            "         join form_types ft on sh.form_id = ft.id\n" +
-            "where s.id = ?", nativeQuery = true)
-    List<SubjectMark> findStudentMarkForSubject(Long studentId);
+    @Query(value = """
+            SELECT sub.name AS subjectName, m.mark AS markValue, ft.name AS type
+            FROM marks AS m
+                     JOIN students s ON s.id = m.student_id
+                     JOIN sheets sh ON sh.id = m.sheet_id
+                     JOIN subjects sub ON sub.id = sh.subject_id
+                     JOIN form_types ft ON sh.form_id = ft.id
+            WHERE s.id = ?
+              AND sh.course = (SELECT MAX(course)
+                               FROM sheets
+                               where m.student_id = s.id)""", nativeQuery = true)
+    List<SubjectMark> findLastStudentMarkForSubject(Long studentId);
 }
